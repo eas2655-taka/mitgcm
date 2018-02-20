@@ -27,6 +27,12 @@ lon=rdmds(xin); X = squeeze(lon(:,1));
 lat=rdmds(yin); Y = squeeze(lat(1,:));
 Z=-squeeze(rdmds(zin));
 [V,iter]=rdmds(fin,NaN);
+Nsize= size(V);
+Ndim = length(Nsize);
+if Ndim == 3 & Nsize(end) == length(iter)
+   % this is a 2D (x-y) map
+   Z = 0.;
+end
 
 % define (year since 0000-00-00)
 T0 = (iter-iter(1))*dT/yr2sec;
@@ -40,7 +46,9 @@ fillValue = -99999;
 % 3-3. Define dimensions
 dimidX = netcdf.defDim(scope,'lon',length(X));
 dimidY = netcdf.defDim(scope,'lat',length(Y));
-dimidZ = netcdf.defDim(scope,'depth',length(Z)); % turn on if you have depth directions
+if Z ~= 0.
+   dimidZ = netcdf.defDim(scope,'depth',length(Z)); % turn on if you have depth directions
+end
 dimidT = netcdf.defDim(scope,'time',length(T));
 
 % 3-4. Define coordinates and time axis
@@ -58,12 +66,14 @@ netcdf.putAtt(scope,varid,'units','degrees_north');
 netcdf.defVarFill(scope,varid,false,fillValue);
 netcdf.putVar(scope,varid,Y);
 
-varid = netcdf.defVar(scope,'depth','double',[dimidZ]);
-netcdf.putAtt(scope,varid,'standard_name','depth');
-netcdf.putAtt(scope,varid,'long_name','depth from the surface ocean');
-netcdf.putAtt(scope,varid,'units','m');
-netcdf.defVarFill(scope,varid,false,fillValue);
-netcdf.putVar(scope,varid,Z);
+if Z ~= 0.
+   varid = netcdf.defVar(scope,'depth','double',[dimidZ]);
+   netcdf.putAtt(scope,varid,'standard_name','depth');
+   netcdf.putAtt(scope,varid,'long_name','depth from the surface ocean');
+   netcdf.putAtt(scope,varid,'units','m');
+   netcdf.defVarFill(scope,varid,false,fillValue);
+   netcdf.putVar(scope,varid,Z);
+end
 
 varid = netcdf.defVar(scope,'time','double',[dimidT]);
 netcdf.putAtt(scope,varid,'standard_name','time');
@@ -92,7 +102,11 @@ scope = netcdf.open([fout,'.nc'],'WRITE'); % here we use 'WRITE' because the fil
 varname = vname;
 long_name = longname;
 
-varid = netcdf.defVar(scope,varname,'double',[dimidX,dimidY,dimidZ,dimidT]);
+if Z == 0.
+   varid = netcdf.defVar(scope,varname,'double',[dimidX,dimidY,dimidT]);
+else
+   varid = netcdf.defVar(scope,varname,'double',[dimidX,dimidY,dimidZ,dimidT]);
+end
 netcdf.putAtt(scope,varid,'long_name',long_name);
 netcdf.putAtt(scope,varid,'units',unit);
 netcdf.defVarFill(scope,varid,false,fillValue);
